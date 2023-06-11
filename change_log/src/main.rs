@@ -14,16 +14,12 @@ fn main() {
             Err(e) => panic!("Failed to open a repo here: {}", e),
         };
 
-        let remotes = match repo.remotes() {
+        let origin = match repo.find_remote("origin") {
             Ok(r) => r,
-            Err(e) => panic!("repo doesnt have a name {}", e),
+            Err(e) => panic!("No remotes{}", e),
         };
 
-        let remote_name = remotes.iter().find(|x| x.is_some()).unwrap().unwrap();
-
-        if !remote_name.is_empty() {
-            panic!("remote_name {}", remote_name);
-        }
-        panic!("no remotes");
+        println!("origin is {}", origin.url().unwrap());
+        panic!("Exit");
     }
 }
