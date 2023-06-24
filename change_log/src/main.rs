@@ -3,6 +3,7 @@ use std::{
     error::Error,
     io::{stdin, Read},
     path::PathBuf,
+    process::exit,
 };
 
 // need to keep a list of-
@@ -15,12 +16,6 @@ use std::{
 // * drop d
 // * stop s
 // * cancel c
-enum KeyPress {
-    P,
-    D,
-    S,
-    C,
-}
 
 // cargo watch -x run
 fn get_commits(repo: &Repository) -> Result<Vec<Commit>, Box<dyn Error>> {
@@ -31,40 +26,44 @@ fn get_commits(repo: &Repository) -> Result<Vec<Commit>, Box<dyn Error>> {
     revwalk.set_sorting(git2::Sort::TIME)?;
 
     // start walking through commits
-    for rev in revwalk {
+    'outer: for rev in revwalk {
         let commit = repo.find_commit(rev?)?;
         let message = commit
             .summary_bytes()
             .unwrap_or_else(|| commit.message_bytes());
 
         // Show commit & read input
-        println!("{}\t{}", commit.id(), String::from_utf8_lossy(message));
+        let commit_id = commit.id();
+        println!("{}\t{}", commit_id, String::from_utf8_lossy(message));
         println!("Press: p to Pick, d to Drop, s to Stop(or finish), c to Cancel");
-        let mut buffer = [0u8; 1];
-        let i: char = match stdin().read_exact(&mut buffer) {
-            Ok(_) => buffer[0] as char,
-            Err(e) => {
-                println!("Error reading input{}", e);
-                '\0'
-            }
-        };
 
-        // Let user select what to do with input
-        if i == 'p' {
-            static_commits.push(commit.clone());
-            continue;
+        let mut input = String::new();
+        stdin().read_line(&mut input)?;
+        let input_char = input.chars().nth(0).unwrap();
+        match input_char {
+            'p' => {
+                static_commits.push(commit.clone());
+                println!("Pushed commit {}", commit_id);
+                continue 'outer;
+            }
+            'd' => {
+                println!("Skipping to next commit {}", commit_id);
+                continue 'outer;
+            }
+            's' => {
+                println!("Finished the task");
+                break 'outer;
+            }
+            'c' => {
+                println!("Closing the program");
+                exit(0);
+            }
+            _ => {
+                println!("Unknown command: {}", input_char);
+            }
         }
-        if i == 'd' {
-            continue;
-        }
-        if i == 's' {
-            break;
-        }
-        if i == 'c' {
-            panic!("terminating the program")
-        }
-        println!("Unknown input");
     }
+
     return Ok(static_commits);
 }
 
@@ -73,9 +72,10 @@ fn get_repo(path: PathBuf) -> Result<Repository, Box<dyn Error>> {
     Ok(repo)
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let mut path = PathBuf::new();
+fn get_path() -> Result<PathBuf, Box<dyn Error>> {
     println!("Input relative repo path");
+    let mut path = PathBuf::new();
+
     let mut repo_path = String::new();
     stdin().read_line(&mut repo_path)?;
 
@@ -84,7 +84,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         repo_path.pop();
     }
     path.push(repo_path);
+    Ok(path)
+}
 
+fn generate_changelog(commits: &Vec<Commit>) -> String {
+    println!("{}", commits.len());
+    "Hola".to_string()
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let path = get_path()?;
     let repo = get_repo(path)?;
     let commits = get_commits(&repo)?;
     println!(
