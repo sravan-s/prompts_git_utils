@@ -1,22 +1,7 @@
 use git2::{Commit, Repository};
-use std::{
-    error::Error,
-    io::{stdin, Read},
-    path::PathBuf,
-    process::exit,
-};
+use std::{error::Error, io::stdin, path::PathBuf, process::exit};
 
-// need to keep a list of-
-// commitId, commitMessage
-
-// there are 3 types of commits-
-// feature, bugfix, chore(others)
-// go through each commit ->
-// * pick p
-// * drop d
-// * stop s
-// * cancel c
-//
+mod commits;
 
 enum CommitPrompt {
     Pick,
@@ -111,19 +96,12 @@ fn get_path() -> Result<PathBuf, Box<dyn Error>> {
     Ok(path)
 }
 
-fn generate_changelog(commits: &Vec<Commit>) -> String {
-    println!("{}", commits.len());
-    "Hola".to_string()
-}
-
 fn main() -> Result<(), Box<dyn Error>> {
     let path = get_path()?;
     let repo = get_repo(path)?;
-    let commits = get_commits(&repo)?;
-    println!(
-        "repo is worktree-> {}; commits len {}",
-        repo.is_worktree(),
-        commits.len()
-    );
+    let selected_commits = get_commits(&repo)?;
+    let final_message = commits::generate_changelog(&selected_commits);
+    println!("/n/n/n/final message:");
+    println!("{}", final_message);
     Ok(())
 }
