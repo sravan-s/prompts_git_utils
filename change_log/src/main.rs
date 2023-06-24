@@ -16,8 +16,32 @@ use std::{
 // * drop d
 // * stop s
 // * cancel c
+//
 
-// cargo watch -x run
+enum CommitPrompt {
+    Pick,
+    Drop,
+    Stop,
+    Cancel,
+    Unknown,
+}
+
+fn get_commit_prompt() -> Result<CommitPrompt, Box<dyn Error>> {
+    println!("Press: p to Pick, d to Drop, s to Stop(or finish), c to Cancel");
+
+    let mut input = String::new();
+    stdin().read_line(&mut input)?;
+    let input_char = input.chars().nth(0).unwrap();
+    let input_enum = match input_char {
+        'p' => CommitPrompt::Pick,
+        'd' => CommitPrompt::Drop,
+        's' => CommitPrompt::Stop,
+        'c' => CommitPrompt::Cancel,
+        _ => CommitPrompt::Unknown,
+    };
+    Ok(input_enum)
+}
+
 fn get_commits(repo: &Repository) -> Result<Vec<Commit>, Box<dyn Error>> {
     // initialize
     let mut static_commits: Vec<Commit> = Vec::new();
@@ -35,31 +59,31 @@ fn get_commits(repo: &Repository) -> Result<Vec<Commit>, Box<dyn Error>> {
         // Show commit & read input
         let commit_id = commit.id();
         println!("{}\t{}", commit_id, String::from_utf8_lossy(message));
-        println!("Press: p to Pick, d to Drop, s to Stop(or finish), c to Cancel");
 
-        let mut input = String::new();
-        stdin().read_line(&mut input)?;
-        let input_char = input.chars().nth(0).unwrap();
-        match input_char {
-            'p' => {
-                static_commits.push(commit.clone());
-                println!("Pushed commit {}", commit_id);
-                continue 'outer;
-            }
-            'd' => {
-                println!("Skipping to next commit {}", commit_id);
-                continue 'outer;
-            }
-            's' => {
-                println!("Finished the task");
-                break 'outer;
-            }
-            'c' => {
-                println!("Closing the program");
-                exit(0);
-            }
-            _ => {
-                println!("Unknown command: {}", input_char);
+        loop {
+            let prompt = get_commit_prompt()?;
+            match prompt {
+                CommitPrompt::Pick => {
+                    static_commits.push(commit.clone());
+                    println!("Pushed commit {}", commit_id);
+                    break;
+                }
+                CommitPrompt::Drop => {
+                    println!("Skipping to next commit {}", commit_id);
+                    break;
+                }
+                CommitPrompt::Stop => {
+                    println!("Finished iterating through commits");
+                    break 'outer;
+                }
+                CommitPrompt::Cancel => {
+                    println!("Closing the program");
+                    exit(0);
+                }
+                _ => {
+                    println!("Unknown command");
+                    continue;
+                }
             }
         }
     }
